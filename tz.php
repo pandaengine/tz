@@ -6,7 +6,7 @@
  * @copyright Copyright (c) 2013 http://qingmvc.com
  * @license http://www.apache.org/licenses/LICENSE-2.0 Apache-2.0
  */
-define('DS',DIRECTORY_SEPARATOR);
+defined('DS') or define('DS',DIRECTORY_SEPARATOR);
 //#函数
 function color($v,$color='red'){
 	return "<b style=\"color:{$color};\">{$v}</b>";
@@ -19,6 +19,14 @@ function color_green($v){
 }
 function url_action($ac){
 	return '?ac='.$ac;
+}
+function qini_get($key){
+	$v=ini_get($key);
+	if($v===null || $v===''){
+		return '<i>no value</i>';
+	}else{
+		return $v;
+	}
 }
 /**
  * @author xiaowang <736523132@qq.com>
@@ -39,7 +47,7 @@ abstract  class TzBase implements TzInterface{
 	public function table($title,array $datas){
 		$body="";
 		foreach($datas as $k=>$v){
-			if(!$v){$v='<i>no value</i>';}
+			if($v===null || $v===''){$v='<i>no value</i>';}
 			$body.="<tr><td>{$k}</td><td>{$v}</td></tr>";
 		}
 		$html="<table class=\"table table-hover\">
@@ -137,6 +145,7 @@ class TzPhpInfo extends TzBase{
 		echo $this->table('PHP信息',$info);
 		//
 		$this->safe();
+		$this->perf();
 		$this->phpinfo_imp();
 		$this->extensions();
 	}
@@ -146,12 +155,13 @@ class TzPhpInfo extends TzBase{
 	public function safe(){
 		$info=[];
 		$info[color_red('禁用危险函数/disable_functions')]	=ini_get('disable_functions');
-		$info['dl()函数/enable_dl']			=ini_get('enable_dl');
-		$info['PHP安全模式/safe_mode']			=ini_get('safe_mode');
-		$info['允许访问的文件路径/open_basedir']	=ini_get('open_basedir');
-		$info['']							='文件系统安全：限制访问超出open_basedir定义的路径文件，避免敏感文件被访问，passwd/php配置文件/my.ini等';
+		$info['dl()函数/enable_dl']							=ini_get('enable_dl');
+		$info['eval语言结构']								=color_red('极度危险，不推荐在代码中使用。').'不是函数，不能用disable_functions禁止，需要使用第三方扩展Suhosin等';
+		$info['PHP安全模式/safe_mode']						=ini_get('safe_mode');
+		$info['允许访问的文件路径/open_basedir']			=ini_get('open_basedir');
+		$info['']											='文件系统安全：限制访问超出open_basedir定义的路径文件，避免敏感文件被访问，passwd/php配置文件/my.ini等';
 		//危险函数
-		$funcs='system,show_source,eval,shell_exec,exec,proc_open,popen,passthru,dl,assert';
+		$funcs='system,show_source,shell_exec,exec,proc_open,popen,passthru,dl,assert';
 		$html='';
 		foreach(explode(',',$funcs) as $func){
 			$f=$func;
@@ -165,6 +175,30 @@ class TzPhpInfo extends TzBase{
 		$info[color_red('危险函数是否存在/启用')]="<div class=\"danger-funcs\">{$html}</div>";
 		
 		echo $this->table('PHP安全',$info);
+	}
+	/**
+	 * php性能
+	 * 
+	 * @link http://php.net/manual/zh/opcache.configuration.php
+	 */
+	public function perf(){
+		$opcache="查看phpinfo()信息的opcache扩展部分";
+		$opcache.="\n<br/>是否开启：".qini_get('opcache.enable');
+		$opc=[];
+		$opc['opcache.enable/启用操作码缓存']=qini_get('opcache.enable');
+		$opc['opcache.memory_consumption/共享内存大小']=qini_get('opcache.memory_consumption');
+		$opc['opcache.validate_timestamps/定时检查脚本是否更新']=qini_get('opcache.validate_timestamps').' (单位秒)';
+		$opc['opcache.save_comments/是否缓存注释内容']=qini_get('opcache.save_comments');
+		$opc['opcache.blacklist_filename/不缓存的黑名单']=qini_get('opcache.blacklist_filename');
+		$opc['opcache.force_restart_timeout/重启过期时间']=qini_get('opcache.force_restart_timeout');
+		$opc['opcache.preferred_memory_model/首选缓存模块']=qini_get('opcache.preferred_memory_model').' (mmap，shm, posix 以及 win32)';
+		$opc['opcache.file_cache_only/只用文件缓存还是开启共享内存']=qini_get('opcache.file_cache_only');
+		
+		$opc=$this->table('查看phpinfo()信息的opcache扩展部分',$opc);
+		
+		$info=[];
+		$info[color_green('opcache/操作码缓存')]=$opc;
+		echo $this->table('PHP性能',$info);
 	}
 	/**
 	 * 已加载模块
@@ -356,6 +390,13 @@ table {
 td,th{
     padding: 5px 10px;
     border: 1px solid #ccc;
+	word-break: break-all;
+}
+td>table,
+th>table{
+    margin: -5px -10px;
+	margin:0;
+    box-shadow: none;
 }
 th{
 	background: #ddd;
